@@ -1,0 +1,150 @@
+### ----------------------- IMPORTS --------------------------------------------------------------------------------- 
+os → lets you set environment variables (used for API key).
+apikey → comes from your local apikey.py file (contains your Gemini key).
+streamlit → builds the web app UI.
+ChatGoogleGenerativeAI → LangChain wrapper for Google’s Gemini model.
+PromptTemplate → defines text templates with variables that will be filled in.
+LLMChain → connects a prompt template with an LLM to generate structured output.
+ConversationBufferMemory → stores previous inputs/outputs (memory).
+WikipediaAPIWrapper → fetches information from Wikipedia for grounding.
+
+
+#### ------------------------ setting keys --------------------------------------------------------------------------
+os.environ["GOOGLE_API_KEY"] = apikey
+
+- Puts your Gemini API key into the environment variable GOOGLE_API_KEY.
+- The Gemini LLM wrapper looks for this when authenticating.
+
+### -------------------------- STREAMLIT UI --------------------------------------------------------------------------
+st.title("🦜🛠️ Youtube GEMINI Creator")
+prompt = st.text_input("Enter your prompt here")
+
+- Displays the app title at the top of the page.
+- Creates an input box where the user types a topic (the “prompt”).
+
+
+### --------------------------- Prompt templates ---------------------------------------------------------------------- 
+title_template = PromptTemplate(
+    input_variables=["topic"],
+    template="Write me a youtube video title about {topic}. ..."
+)
+
+- Defines how to ask the model for a video title.
+- {topic} gets replaced by the user’s input.
+- Ensures the output is only one line suitable as a YouTube title.
+
+
+### ------------------------- -----------------------------------------------------------------------------------------
+script_template = PromptTemplate(
+    input_variables=["title", "wikipedia_research"],
+    template="Write me a youtube video script based on the title TITLE : {title}, ..."
+)
+
+- Defines how to ask the model for a video script.
+- Uses both the generated title and Wikipedia research.
+- Instructs the model to create a friendly, engaging script.
+
+
+### --------------------------- MEMORY ----------------------------------------------------------------------------------
+title_memory = ConversationBufferMemory(input_key="topic", memory_key="chat_history")
+script_memory = ConversationBufferMemory(input_key="title", memory_key="chat_history")
+
+- Stores conversation history (inputs/outputs).
+- title_memory saves all generated titles.
+- script_memory saves all generated scripts.
+- These are later shown in expandable sections in the UI.
+
+
+### ---------------- LLM INITILIZATION ----------------------------------------------------------------------------------
+llm = ChatGoogleGenerativeAI(
+    model="gemini-1.5-flash",
+    temperature=0.7
+)
+
+- Creates an instance of the Gemini model.
+- gemini-1.5-flash → lightweight, faster variant.
+- temperature=0.7 → balances creativity vs. consistency.
+
+
+### ----------------- LLM CHAINS -------------------------------------------------------------------------------------------
+title_chain = LLMChain(
+    llm=llm, 
+    prompt=title_template, 
+    verbose=True, 
+    output_key="title",
+    memory=title_memory
+)
+
+- Connects the Gemini model with the title template.
+- Produces output under the key "title".
+- Uses memory to track past generations.
+
+### ----------------------------------------------------------------------------------------------------------------------
+script_chain = LLMChain(
+    llm=llm, 
+    prompt=script_template, 
+    verbose=True, 
+    output_key="script",
+    memory=script_memory
+)
+
+- Connects the Gemini model with the script template.
+- Produces output under the key "script".
+- Uses memory to track past scripts.
+
+
+### -------------------- WIKIPEDAI TOOL -----------------------------------------------------------------------------------
+wiki = WikipediaAPIWrapper()
+
+- Provides a function wiki.run(query) that fetches a short summary from Wikipedia.
+- Used to give the model background knowledge.
+
+
+### -------------------- MAIN PROMPT LOGIC ----------------------------------------------------------------------------------
+if prompt:
+    title = title_chain({"topic": prompt})
+    wiki_research = wiki.run(prompt)
+    script = script_chain({
+        "title": title['title'],
+        "wikipedia_research": wiki_research
+    })
+
+
+- User enters topic → stored in prompt.
+- title_chain generates a YouTube title using the topic.
+- wiki.run(prompt) fetches Wikipedia info about the topic.
+- script_chain generates a script using both the title and the Wikipedia summary.
+
+### -------------------------- DISPLAY RESULT ----------------------------------------------------------------------------
+st.subheader("🎬 Video Title")
+st.write(title['title'])
+st.subheader("📜 Script")
+st.write(script['script'])
+
+- Displays generated title and script in the Streamlit UI.
+
+
+### -------------------------- SHOW HISTORY --------------------------------------------------------------------------------
+with st.expander("Conversation Title History"):
+    st.info(title_memory.buffer)
+
+with st.expander("Conversation Script History"):
+    st.info(script_memory.buffer)   
+
+with st.expander("Wikipedia Research History"):
+    st.info(wiki_research)
+
+
+- Expandable sections show:
+- All past generated titles.
+- All past generated scripts.
+- Wikipedia text used for the current generation.
+
+
+### In short:
+
+    > User enters a topic.
+    > Gemini generates a YouTube title.
+    > Wikipedia fetches research.
+    > Gemini generates a YouTube-style script using both.
+    > Results + history are displayed in Streamlit.
