@@ -1,0 +1,24 @@
+# Virtual environments
+venv/
+.env/
+.langchain/
+langchain/
+lib/
+Lib/
+pyvenv.cfg
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints
+
+# System files
+.DS_Store
+Thumbs.db
