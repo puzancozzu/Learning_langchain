@@ -65,7 +65,7 @@ sequential_chain = SequentialChain(
     verbose=True,
 )
 
-# show the response if there's a prompt
+# show the response if there's a promp - just like in chatgpt
 if prompt:
     response = sequential_chain({"topic": prompt})
     st.subheader("🎬 Video Title")
